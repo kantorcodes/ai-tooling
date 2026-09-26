@@ -53,7 +53,7 @@ python3 -c "import json;print(json.load(open('~/.claude/settings.json'))['hooks'
 ## What didn't work or surprised us
 
 - **Very young, single-org, fast-churning.** Created 2026-03-28 (under 3 months old), 362 stars, 7 forks, and ~100 commits in the last ~90 days, with releases at `v2.0.829` *on the eval date* (three releases within ~18 minutes). High velocity is good for fixes but means the runtime gate, the API, and the detector set are all moving targets; pinning a version is advisable.
-- **It claims `PreToolUse` hook slots — direct conflict risk with the user's stack.** The user's `~/.claude/settings.json` already runs OMEGA's `fast_hook.py` on PostToolUse (matcher `Edit|Write|NotebookEdit|Bash|Read`), SessionStart, and Stop, plus GSD hooks. Guard installing "managed" hooks into the same config is exactly the multi-hook collision risk flagged in the agentmemory eval. There is no documented conflict-resolution contract for coexisting third-party hooks.
+- **Hook coexistence needs a fresh hands-on check, but the original source-level collision concern is now stale.** The user's `~/.claude/settings.json` already runs OMEGA's `fast_hook.py` on PostToolUse (matcher `Edit|Write|NotebookEdit|Bash|Read`), SessionStart, and Stop, plus GSD hooks. Current HOL Guard source now preserves unrelated Claude Code hook entries during install/uninstall and merges its managed handler into an existing matcher group instead of replacing the other handlers. That materially reduces the specific "managed hooks overwrite the chain" concern from this August evaluation. This evaluation has not been rerun hands-on against this exact OMEGA + GSD stack, so runtime compatibility is still unverified here.
 - **Performance tax on every tool call.** By design Guard runs detectors before each action. Even at the claimed millisecond budget, that is non-zero latency multiplied across thousands of tool calls per session, and a hook crash/timeout fails *open* on some harnesses (Kimi/Grok are documented to fail open) — meaning the guarantee silently degrades under load exactly when you'd want it most.
 - **Naming/packaging is confusing.** Two packages (`hol-guard`, `plugin-scanner`), a third source name (`codex_plugin_scanner`), an optional Cisco extra with Python-version-dependent availability (no Cisco MCP scanner on 3.14+), and a `[cisco]` extra vs. a repo-controlled `cisco-mcp` uv group. The install matrix is heavier than "pipx install" implies.
 - **Cloud account required for advisory freshness.** The runtime detectors work offline, but `advisories sync` (the up-to-date threat feed) requires a HOL Guard Cloud account. Without it you run on the bundled, aging advisory DB — a soft push toward their hosted service.
@@ -77,18 +77,20 @@ python3 -c "import json;print(json.load(open('~/.claude/settings.json'))['hooks'
 Both statically inspect third-party skills/plugins/MCP servers for prompt injection and
 exfiltration before you trust them; that half is a straight duplicate of an incumbent that has been
 run. Guard's differentiator is *pre-execution interception* — claiming managed `PreToolUse` slots
-so a scan runs in-line on every tool call — and the evaluation already named why that is a cost
-rather than a bonus here: the environment's `~/.claude/settings.json` carries OMEGA + GSD hooks and
-Guard ships no documented coexistence contract. A security tool that can silently break the hook
-chain it shares is a worse trade than the scan-on-install it improves upon.
+so a scan runs in-line on every tool call. At the time of this evaluation, the coexistence path was
+not documented here. Current Guard source now preserves unrelated Claude Code hook entries and
+merges its managed handler into existing matcher groups. That removes the original source-level
+"hook-chain replacement" premise, but this evaluation has not been rerun against the actual OMEGA
++ GSD stack, so the SKIP verdict is left intact pending hands-on validation.
 
 The supporting facts point the same way: `NOASSERTION` (GitHub cannot parse the LICENSE), 389
 stars, under three months old, releasing many times a day. Strong security-engineering provenance
 (OpenSSF Scorecard, CodeQL, fuzzing) makes it a repo worth watching — not one to wire into the
 critical path of every tool call.
 
-Re-open if Guard documents hook coexistence, or if in-line interception becomes the thing
-SkillSpector's install-time scan is demonstrably missing.
+Re-open trigger update: Guard now has source-level hook coexistence behavior. The remaining
+trigger is a hands-on run against this hook-heavy environment, or evidence that in-line interception
+is the thing SkillSpector's install-time scan is demonstrably missing.
 
 _Triaged 2026-08-04 by the P2 challenger band ([#267](https://github.com/mattbutlerengineering/ai-tooling/issues/267))._
 
